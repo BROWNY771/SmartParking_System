@@ -3,49 +3,111 @@
 {% block title %}Parking History | Smart Parking{% endblock %}
 
 {% block content %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>📋 Complete Parking History</h2>
-        <button onclick="window.print()" style="padding: 8px 15px; cursor: pointer; background: #34495e; color: white; border: none; border-radius: 4px;">
-            Download Report
-        </button>
-    </div>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <div style="background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background: #f1f4f6; text-align: left;">
-                    <th style="padding: 15px;">Plate Number</th>
-                    <th style="padding: 15px;">Slot & Zone</th>
-                    <th style="padding: 15px;">Entry</th>
-                    <th style="padding: 15px;">Exit</th>
-                    <th style="padding: 15px;">Fee</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for session in sessions %}
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 15px;"><strong>{{ session.vehicle.plate_number }}</strong></td>
-                    <td style="padding: 15px;">{{ session.slot.slot_number }} ({{ session.slot.zone.name }})</td>
-                    <td style="padding: 15px;">{{ session.entry_time|date:"d M, H:i" }}</td>
-                    <td style="padding: 15px;">
-                        {% if session.exit_time %}
-                            {{ session.exit_time|date:"d M, H:i" }}
-                        {% else %}
-                            <span style="color: #e67e22; font-weight: bold;">In Progress</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 15px; font-weight: bold; color: #27ae60;">
-                        {{ session.total_price }} DH
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="padding: 30px; text-align: center; color: #95a5a6;">
-                        No history records found.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<style>
+    .history-card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    .history-table { width: 100%; border-collapse: collapse; }
+    .history-table th { background: #f8fafc; padding: 16px; text-align: left; font-size: 13px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+    .history-table td { padding: 16px; border-top: 1px solid #f1f5f9; vertical-align: middle; }
+    
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-completed { background: #dcfce7; color: #166534; }
+    .status-progress { background: #fef3c7; color: #92400e; }
+    
+    .plate-badge { background: #1e293b; color: white; padding: 6px 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-weight: bold; }
+    
+    .search-filter { display: flex; gap: 10px; margin-bottom: 20px; }
+    .filter-input { padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; width: 300px; outline: none; }
+    .filter-input:focus { border-color: #4f46e5; }
+    
+    .btn-print { background: #1e293b; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .btn-print:hover { background: #334155; }
+
+    @media print {
+        .btn-print, .search-filter, .dashboard-sidebar { display: none !important; }
+        .history-card { box-shadow: none; border: 1px solid #eee; }
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+        <h2 style="font-weight: 800; color: #1e293b; margin: 0;">📋 Historique Complet</h2>
+        <p style="color: #64748b; margin: 5px 0 0 0;">Consultez et exportez les rapports de stationnement</p>
     </div>
-{% endblock %}s
+    <button onclick="window.print()" class="btn-print">
+        <i class="fas fa-file-pdf"></i> Imprimer le Rapport
+    </button>
+</div>
+
+<div class="search-filter">
+    <input type="text" id="historySearch" class="filter-input" placeholder="Rechercher une plaque..." onkeyup="filterHistory()">
+</div>
+
+<div class="history-card">
+    <table class="history-table" id="historyTable">
+        <thead>
+            <tr>
+                <th>Plaque</th>
+                <th>Emplacement</th>
+                <th>Entrée</th>
+                <th>Sortie</th>
+                <th>Statut</th>
+                <th>Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in sessions %}
+            <tr class="history-row">
+                <td><span class="plate-badge">{{ session.vehicle.plate_number }}</span></td>
+                <td>
+                    <div style="font-weight: 700;">{{ session.slot.slot_number }}</div>
+                    <div style="font-size: 11px; color: #64748b;">{{ session.slot.zone.name }}</div>
+                </td>
+                <td style="font-size: 13px;">{{ session.entry_time|date:"d M Y" }}<br><small>{{ session.entry_time|date:"H:i" }}</small></td>
+                <td style="font-size: 13px;">
+                    {% if session.exit_time %}
+                        {{ session.exit_time|date:"d M Y" }}<br><small>{{ session.exit_time|date:"H:i" }}</small>
+                    {% else %}
+                        <span style="color: #94a3b8;">--:--</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if session.exit_time %}
+                        <span class="status-badge status-completed">Terminé</span>
+                    {% else %}
+                        <span class="status-badge status-progress">En cours</span>
+                    {% endif %}
+                </td>
+                <td style="font-weight: 800; color: {% if session.exit_time %}#10b981{% else %}#94a3b8{% endif %};">
+                    {{ session.total_price }} DH
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="padding: 40px; text-align: center; color: #64748b;">
+                    <i class="fas fa-folder-open" style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: 0.3;"></i>
+                    Aucun enregistrement trouvé.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function filterHistory() {
+        let input = document.getElementById('historySearch').value.toUpperCase();
+        let rows = document.querySelectorAll('.history-row');
+
+        rows.forEach(row => {
+            let plate = row.querySelector('.plate-badge').innerText.toUpperCase();
+            if (plate.includes(input)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+</script>
+{% endblock %}

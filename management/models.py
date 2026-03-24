@@ -1,13 +1,28 @@
 from django.db import models
 from django.utils import timezone
+import math
 
 class Zone(models.Model):
     name = models.CharField(max_length=50)
-    price_per_hour = models.DecimalField(max_digits=6, decimal_places=2)
-    max_duration = models.IntegerField(help_text="In hours")
+    price_per_hour = models.DecimalField(max_digits=6, decimal_places=2, help_text="Prix de base de la zone")
+    max_duration = models.IntegerField(help_text="En heures")
+
+    def __str__(self):
+        return f"{self.name} ({self.price_per_hour} DH/h)"
+
+class VehicleType(models.Model):
+    name = models.CharField(max_length=50)  # Ex: "Voiture", "Moto", "Poids lourd"
+    extra_rate = models.DecimalField(max_digits=6, decimal_places=2, default=0.00, help_text="Supplément pour ce type")
 
     def __str__(self):
         return self.name
+
+class Vehicle(models.Model):
+    plate_number = models.CharField(max_length=20, unique=True)
+    vehicle_type = models.ForeignKey(VehicleType, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.plate_number} ({self.vehicle_type.name})"
 
 class ParkingSlot(models.Model):
     STATUS_CHOICES = [('available', 'Available'), ('occupied', 'Occupied')]
@@ -17,24 +32,9 @@ class ParkingSlot(models.Model):
 
     def __str__(self):
         return f"Slot {self.slot_number} ({self.zone.name})"
+
     def get_active_session(self):
         return self.parkingsession_set.filter(exit_time__isnull=True).last()
-
-    @property
-    def current_vehicle_plate(self):
-        session = self.get_active_session()
-        return session.vehicle.plate_number if session else ""
-
-    @property
-    def current_entry_time(self):
-        session = self.get_active_session()
-        return session.entry_time.strftime("%H:%M") if session else ""
-class Vehicle(models.Model):
-    plate_number = models.CharField(max_length=20, unique=True)
-    vehicle_type = models.CharField(max_length=30)
-
-    def __str__(self):
-        return self.plate_number
 
 class ParkingSession(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
@@ -45,6 +45,12 @@ class ParkingSession(models.Model):
 
     def calculate_price(self):
         if self.exit_time:
+            # Calcul de la durée en heures (arrondi au supérieur pour chaque heure entamée)
             duration = (self.exit_time - self.entry_time).total_seconds() / 3600
-            self.total_price = float(duration) * float(self.slot.zone.price_per_hour)
+            hours_to_bill = math.ceil(duration) if duration > 0 else 1
+            
+            # Tarif cumulé = Tarif de la Zone + Supplément du type de véhicule
+            hourly_rate = float(self.slot.zone.price_per_hour) + float(self.vehicle.vehicle_type.extra_rate)
+            
+            self.total_price = hours_to_bill * hourly_rate
             self.save()

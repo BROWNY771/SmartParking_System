@@ -1,56 +1,78 @@
-import sqlite3
+import os
+import sys
+import django
+import random
 
-# Connexion à la base de données
-conn = sqlite3.connect('db.sqlite3')
-cursor = conn.cursor()
+# 1. Configuration du chemin
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
 
-def insert_parking_data():
-    try:
-        # 1. Définition des Zones (Nom, Prix, Durée Max)
-        zones_to_create = [
-            ('Zone Nord (A)', 15.00, 24),
-            ('Zone Ouest (B)', 10.00, 12),
-            ('Zone Est (C)', 20.00, 48),
-            ('Zone Sud (D)', 12.00, 24),
-        ]
+# 2. Utilisation du nom de projet détecté
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'parking_web.settings')
 
-        print("--- Insertion des Zones ---")
-        zone_mapping = {} # Pour stocker {Lettre: ID_réel_BDD}
+# 3. Initialisation
+try:
+    django.setup()
+    print("✅ Django initialisé (Projet: parking_web)")
+except Exception as e:
+    print(f"❌ Erreur : {e}")
+    sys.exit(1)
+
+# 4. Imports avec TES noms de classes exacts
+from django.utils import timezone
+from management.models import Zone, VehicleType, Vehicle, ParkingSlot, ParkingSession
+
+def seed_parking():
+    print("🚀 Remplissage du parking en cours...")
+
+    # Création/Récupération d'un type de véhicule par défaut
+    v_type, _ = VehicleType.objects.get_or_create(name="Berline")
+
+    vehicles_data = [
+        ("ABC-123-A", "Audi A4"), ("DFG-456-B", "Golf 8"),
+        ("HJK-789-C", "Mercedes C"), ("LMP-012-D", "BMW Serie 3"),
+        ("QRS-345-E", "Renault Clio"), ("TUV-678-F", "Peugeot 208"),
+        ("WXY-901-G", "Tesla Model 3"), ("ZAB-234-H", "Dacia Sandero"),
+        ("CDE-567-I", "Ford Focus"), ("FGH-890-J", "Hyundai Tucson"),
+    ]
+
+    # Récupérer les places libres (ParkingSlot)
+    # On filtre par 'available' (vérifie si c'est bien la valeur dans ton models.py)
+    available_slots = list(ParkingSlot.objects.filter(status='available'))
+
+    if not available_slots:
+        print("❌ Aucune place libre 'available' trouvée.")
+        print("💡 Conseil : Vérifie tes objets ParkingSlot dans l'admin Django.")
+        return
+
+    random.shuffle(available_slots)
+    count = min(len(available_slots), 10)
+
+    for i in range(count):
+        plate, brand = vehicles_data[i]
+        slot = available_slots[i]
+
+        # Créer le véhicule lié au type
+        vehicle, _ = Vehicle.objects.get_or_create(
+            plate_number=plate,
+            defaults={'vehicle_type': v_type} 
+        )
+
+        # Création de la session (entrée il y a 1h à 3h)
+        entry_time = timezone.now() - timezone.timedelta(minutes=random.randint(60, 180))
         
-        for name, price, duration in zones_to_create:
-            cursor.execute("""
-                INSERT INTO management_zone (name, price_per_hour, max_duration) 
-                VALUES (?, ?, ?)
-            """, (name, price, duration))
-            
-            last_id = cursor.lastrowid
-            # On extrait la lettre (A, B, C ou D) pour lier les slots plus tard
-            letter = name.split('(')[1][0] 
-            zone_mapping[letter] = last_id
-            print(f"✅ {name} créée avec l'ID: {last_id}")
+        ParkingSession.objects.create(
+            vehicle=vehicle,
+            slot=slot,
+            entry_time=entry_time
+        )
 
-        # 2. Génération automatique des Slots (10 par zone)
-        print("\n--- Insertion des Slots ---")
-        all_slots = []
-        
-        for letter, zone_id in zone_mapping.items():
-            for i in range(1, 11): # Crée les places de 1 à 10 pour chaque zone
-                slot_number = f"{letter}{i}" # Exemple: A1, A2... B1, B2...
-                all_slots.append((slot_number, 'available', zone_id))
+        # Mise à jour du statut de la place
+        slot.status = 'occupied'
+        slot.save()
+        print(f"  [+] {plate} ({brand}) -> Place {slot.slot_number}")
 
-        cursor.executemany("""
-            INSERT INTO management_parkingslot (slot_number, status, zone_id) 
-            VALUES (?, ?, ?)
-        """, all_slots)
-
-        conn.commit()
-        print(f"🚀 Succès total ! {len(all_slots)} places de parking ont été générées.")
-
-    except Exception as e:
-        print(f"❌ Erreur lors de l'insertion : {e}")
-        conn.rollback()
-    finally:
-        conn.close()
+    print(f"\n✨ Opération terminée : {count} véhicules ajoutés.")
 
 if __name__ == "__main__":
-    insert_parking_data()
+    seed_parking()

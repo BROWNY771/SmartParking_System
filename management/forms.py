@@ -1,19 +1,25 @@
 from django import forms
-from .models import ParkingSession, ParkingSlot
+from .models import ParkingSlot, VehicleType
 
-# Change 'forms.Model' to 'forms.Form'
-class CheckInForm(forms.Form):  
+class CheckInForm(forms.Form):
     plate_number = forms.CharField(
-        max_length=20, 
-        widget=forms.TextInput(attrs={'placeholder': 'ABC-1234', 'class': 'form-input'})
+        label="Numéro de Plaque",
+        widget=forms.TextInput(attrs={
+            'class': 'form-input', 
+            'placeholder': 'Ex: 12345-A-1',
+            'style': 'text-transform: uppercase;'
+        })
     )
-    vehicle_type = forms.CharField(
-        max_length=30, 
-        widget=forms.TextInput(attrs={'placeholder': 'e.g. SUV, Sedan', 'class': 'form-input'})
+    
+    vehicle_type = forms.ModelChoiceField(
+        queryset=VehicleType.objects.all(),
+        label="Type de Véhicule",
+        widget=forms.Select(attrs={'class': 'form-input'})
     )
     
     slot = forms.ModelChoiceField(
+        # CORRECTION : On autorise TOUTES les zones (A, B, C, D)
         queryset=ParkingSlot.objects.filter(status='available'),
-        empty_label="Select an available slot",
+        label="Place de Parking",
         widget=forms.Select(attrs={'class': 'form-input'})
     )

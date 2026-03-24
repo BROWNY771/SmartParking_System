@@ -2,28 +2,45 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.http import HttpResponse
 from django.contrib import messages
+from django.db.models import Sum, Count
+from django.db import transaction
 import io
+import math
+import json
+from decimal import Decimal
 
 # Imports ReportLab pour le PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 
-# IMPORTATION DE TOUS TES MODÈLES ET FORMULAIRES
-# Assure-toi que ces noms correspondent exactement à ton fichier models.py et forms.py
-from .models import ParkingSlot, ParkingSession, Vehicle 
-from .forms import CheckInForm 
-
+from .models import ParkingSlot, ParkingSession, Vehicle, Zone
+from .forms import CheckInForm
 def dashboard(request):
-    # On récupère les compteurs pour les stats
     total_slots = ParkingSlot.objects.count()
     available_slots = ParkingSlot.objects.filter(status='available').count()
     occupied_slots = ParkingSlot.objects.filter(status='occupied').count()
-    
-    # Récupérer TOUS les slots pour le plan de masse
     all_slots = ParkingSlot.objects.all().order_by('slot_number')
-    
-    # Sessions en cours (véhicules garés) pour le tableau
     recent_sessions = ParkingSession.objects.filter(exit_time__isnull=True).order_by('-entry_time')
+    
+    # Configuration des zones pour le graphique
+    zones_config = [
+        {'label': 'Zone Nord (A)', 'key': '(A)'},
+        {'label': 'Zone Ouest (B)', 'key': '(B)'},
+        {'label': 'Zone Est (C)', 'key': '(C)'},
+        {'label': 'Zone Sud (D)', 'key': '(D)'} 
+    ]
+    
+    labels = []
+    data_chart = [] 
+
+    for item in zones_config:
+        labels.append(item['label'])
+        # Compte les places occupées par zone
+        count = ParkingSlot.objects.filter(
+            zone__name__icontains=item['key'], 
+            status='occupied'
+        ).count()
+        data_chart.append(count)
 
     context = {
         'total_slots': total_slots,
@@ -32,91 +49,87 @@ def dashboard(request):
         'all_slots': all_slots,
         'recent_sessions': recent_sessions,
         'today': timezone.now(),
+        'labels': json.dumps(labels),
+        'revenues': json.dumps(data_chart), # Utilisé pour le Bar Chart
     }
     return render(request, 'management/dashboard.html', context)
-
 def history(request):
+    """Affiche l'historique de toutes les sessions."""
     all_sessions = ParkingSession.objects.all().order_by('-entry_time')
     return render(request, 'management/history.html', {'sessions': all_sessions})
 
 def check_in(request):
+    """Enregistre l'entrée d'un véhicule."""
     if request.method == 'POST':
         form = CheckInForm(request.POST)
         if form.is_valid():
-            # 1. Récupérer ou créer le véhicule
-            plate = form.cleaned_data['plate_number']
-            v_type = form.cleaned_data['vehicle_type']
-            vehicle, created = Vehicle.objects.get_or_create(
-                plate_number=plate, 
-                defaults={'vehicle_type': v_type}
-            )
+            with transaction.atomic():
+                plate = form.cleaned_data['plate_number'].upper()
+                v_type = form.cleaned_data['vehicle_type']
+                slot = form.cleaned_data['slot']
 
-            # 2. Créer la Session
-            slot = form.cleaned_data['slot']
-            ParkingSession.objects.create(vehicle=vehicle, slot=slot)
+                # Gestion du véhicule (création ou mise à jour)
+                vehicle, created = Vehicle.objects.get_or_create(
+                    plate_number=plate,
+                    defaults={'vehicle_type': v_type}
+                )
+                
+                if not created and vehicle.vehicle_type != v_type:
+                    vehicle.vehicle_type = v_type
+                    vehicle.save()
 
-            # 3. Mettre à jour le statut du Slot
-            slot.status = 'occupied'
-            slot.save()
+                # Création session et occupation de la place
+                ParkingSession.objects.create(vehicle=vehicle, slot=slot)
+                slot.status = 'occupied'
+                slot.save()
 
-            messages.success(request, f"Véhicule {plate} enregistré à la place {slot.slot_number}")
-            return redirect('dashboard')
+                messages.success(request, f"Véhicule {plate} enregistré à la place {slot.slot_number}")
+                return redirect('dashboard')
     else:
         form = CheckInForm()
-    
     return render(request, 'management/check_in.html', {'form': form})
 
 def checkout_vehicle(request, session_id):
+    """Calcule le prix, libère la place et génère le ticket PDF."""
     session = get_object_or_404(ParkingSession, id=session_id)
     
-    # Marquer la sortie
-    session.exit_time = timezone.now()
-    
-    # --- CALCUL DU PRIX (Exemple : 5 DH / heure) ---
-    duration = session.exit_time - session.entry_time
-    duration_in_hours = max(1, duration.total_seconds() / 3600)
-    prix_total = round(duration_in_hours * 5, 2)
-    session.total_price = prix_total # Assure-toi d'avoir ce champ dans ton modèle
-    
-    session.save()
-    
-    # Libérer la place
-    session.slot.status = 'available'
-    session.slot.save()
+    if session.exit_time:
+        return redirect('dashboard')
 
-    # --- GÉNÉRATION DU TICKET PDF ---
+    with transaction.atomic():
+        session.exit_time = timezone.now()
+        
+        # Calcul des tarifs
+        base_rate = float(session.slot.zone.price_per_hour)
+        extra_rate = float(session.vehicle.vehicle_type.extra_rate)
+        combined_rate = base_rate + extra_rate
+        
+        duration = session.exit_time - session.entry_time
+        duration_in_hours = duration.total_seconds() / 3600
+        hours_to_bill = math.ceil(duration_in_hours) if duration_in_hours > 0 else 1
+        
+        session.total_price = round(combined_rate * hours_to_bill, 2)
+        session.save()
+        
+        # Libération de la place (redevient verte sur ton plan)
+        session.slot.status = 'available'
+        session.slot.save()
+
+    # Génération du Ticket PDF
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=(80*mm, 120*mm))
-    
-    # En-tête
     p.setFont("Helvetica-Bold", 12)
     p.drawCentredString(40*mm, 110*mm, "SMART PARKING")
-    
     p.setFont("Helvetica", 8)
-    p.drawCentredString(40*mm, 105*mm, "Ticket de Sortie")
+    p.drawCentredString(40*mm, 105*mm, f"Zone: {session.slot.zone.name}")
     p.line(5*mm, 102*mm, 75*mm, 102*mm)
-
-    # Infos véhicule
+    
     p.setFont("Helvetica", 9)
-    p.drawString(10*mm, 90*mm, f"Plaque: {session.vehicle.plate_number}")
-    p.drawString(10*mm, 82*mm, f"Place: {session.slot.slot_number}")
+    p.drawString(10*mm, 92*mm, f"Plaque: {session.vehicle.plate_number}")
+    p.drawString(10*mm, 85*mm, f"Place: {session.slot.slot_number}")
+    p.drawString(10*mm, 70*mm, f"Total: {session.total_price} DH")
     
-    # Horaires
-    p.setFont("Helvetica", 8)
-    p.drawString(10*mm, 72*mm, f"Entrée : {session.entry_time.strftime('%d/%m %H:%M')}")
-    p.drawString(10*mm, 65*mm, f"Sortie : {session.exit_time.strftime('%d/%m %H:%M')}")
-    
-    # Prix
-    p.line(5*mm, 58*mm, 75*mm, 58*mm)
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(10*mm, 50*mm, f"TOTAL : {prix_total} DH")
-    
-    # Pied de page
-    p.setFont("Helvetica-Oblique", 7)
-    p.drawCentredString(40*mm, 35*mm, "Merci de votre visite !")
-
     p.showPage()
     p.save()
-
     buffer.seek(0)
     return HttpResponse(buffer, content_type='application/pdf')

@@ -1,0 +1,51 @@
+{% extends 'management/base.html' %}
+
+{% block title %}Parking History | Smart Parking{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>📋 Complete Parking History</h2>
+        <button onclick="window.print()" style="padding: 8px 15px; cursor: pointer; background: #34495e; color: white; border: none; border-radius: 4px;">
+            Download Report
+        </button>
+    </div>
+
+    <div style="background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f1f4f6; text-align: left;">
+                    <th style="padding: 15px;">Plate Number</th>
+                    <th style="padding: 15px;">Slot & Zone</th>
+                    <th style="padding: 15px;">Entry</th>
+                    <th style="padding: 15px;">Exit</th>
+                    <th style="padding: 15px;">Fee</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>{{ session.vehicle.plate_number }}</strong></td>
+                    <td style="padding: 15px;">{{ session.slot.slot_number }} ({{ session.slot.zone.name }})</td>
+                    <td style="padding: 15px;">{{ session.entry_time|date:"d M, H:i" }}</td>
+                    <td style="padding: 15px;">
+                        {% if session.exit_time %}
+                            {{ session.exit_time|date:"d M, H:i" }}
+                        {% else %}
+                            <span style="color: #e67e22; font-weight: bold;">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 15px; font-weight: bold; color: #27ae60;">
+                        {{ session.total_price }} DH
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding: 30px; text-align: center; color: #95a5a6;">
+                        No history records found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}s

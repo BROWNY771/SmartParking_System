@@ -3,49 +3,6 @@
 {% block title %}Entrée Véhicule | Smart Parking{% endblock %}
 
 {% block content %}
-<style>
-    .entry-card {
-        max-width: 500px; 
-        margin: 40px auto; 
-        background: white; 
-        padding: 30px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    }
-    .form-group { margin-bottom: 20px; }
-    .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #34495e; }
-    
-    /* Cette classe doit être injectée via forms.py */
-    .form-input { 
-        width: 100%; 
-        padding: 12px; 
-        border: 2px solid #edf2f7; 
-        border-radius: 8px; 
-        box-sizing: border-box; 
-        font-size: 15px;
-        transition: border-color 0.2s;
-    }
-    .form-input:focus {
-        outline: none;
-        border-color: #4f46e5; /* Harmonisé avec ton dashboard */
-    }
-    .btn-submit {
-        width: 100%; 
-        padding: 14px; 
-        background: #10b981; /* Vert du dashboard */
-        color: white; 
-        border: none; 
-        border-radius: 8px; 
-        font-size: 16px; 
-        cursor: pointer; 
-        font-weight: bold; 
-        margin-top: 10px;
-        transition: background 0.3s;
-    }
-    .btn-submit:hover { background: #059669; }
-    .error-text { color: #ef4444; font-size: 13px; margin-top: 5px; font-weight: 600; }
-</style>
-
 <div class="entry-card">
     <h2 style="text-align: center; color: #1e293b; margin-bottom: 5px;">🚗 Enregistrement Entrée</h2>
     <p style="text-align: center; color: #64748b; margin-bottom: 25px;">Saisissez les informations du véhicule</p>
@@ -56,7 +13,7 @@
         {% csrf_token %}
         
         {% if form.non_field_errors %}
-            <div class="alert-danger" style="color: #ef4444; margin-bottom: 15px;">
+            <div class="error-text" style="margin-bottom: 15px;">
                 {{ form.non_field_errors }}
             </div>
         {% endif %}

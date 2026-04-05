@@ -1,0 +1,260 @@
+/* --- VARIABLES ET THÈME --- */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary: #2c3e50;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg-asphalt: #1e293b;
+    --road-color: #0f172a;
+    --line-color: rgba(255, 255, 255, 0.2);
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --white: #ffffff;
+}
+
+/* --- BASE --- */
+body { 
+    font-family: 'Inter', 'Segoe UI', sans-serif; 
+    margin: 0; 
+    background-color: #f8f9fa; 
+    color: var(--text-main); 
+}
+
+.container { padding: 30px; max-width: 1200px; margin: 0 auto; }
+
+/* --- NAVIGATION (Header) --- */
+.navbar {
+    background-color: var(--secondary);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.nav-brand { font-size: 1.5rem; font-weight: bold; }
+.nav-links { display: flex; gap: 20px; }
+.nav-links a { color: #bdc3c7; text-decoration: none; transition: 0.3s; font-weight: 500; }
+.nav-links a:hover { color: white; }
+
+/* --- CARTES ET BOITES (Dashboard & Forms) --- */
+.stat-card, .entry-card, .history-card, .chart-container {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    padding: 24px;
+}
+
+.stat-card { border-top: 4px solid var(--primary); transition: transform 0.2s; }
+.stat-val { font-size: 2rem; font-weight: 800; margin-top: 8px; }
+
+/* --- FORMULAIRES (Check-In) --- */
+.entry-card { max-width: 500px; margin: 40px auto; }
+.form-group { margin-bottom: 20px; }
+.form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #34495e; }
+.form-input { 
+    width: 100%; padding: 12px; border: 2px solid #edf2f7; border-radius: 8px; 
+    box-sizing: border-box; font-size: 15px; transition: border-color 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--primary); }
+
+.btn-submit {
+    width: 100%; padding: 14px; background: var(--success); color: white; 
+    border: none; border-radius: 8px; font-size: 16px; cursor: pointer; 
+    font-weight: bold; transition: background 0.3s;
+}
+
+/* --- PLAN INTERACTIF --- */
+#plan-section { background: var(--bg-asphalt); padding: 40px; border-radius: 24px; margin-bottom: 30px; }
+.parking-layout { display: grid; grid-template-areas: "nord nord nord" "ouest route est" "sud sud sud"; grid-template-columns: 1fr 150px 1fr; gap: 20px; }
+
+.slot { 
+    width: 42px; height: 62px; border: 2px solid var(--line-color); border-radius: 8px; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    font-size: 11px; font-weight: 700; color: white; cursor: pointer; 
+    transition: all 0.3s ease; position: relative;
+}
+.slot.side { width: 72px; height: 42px; }
+.slot.available { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: var(--success); }
+.slot.occupied { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); border-color: #f87171; }
+.search-highlight { box-shadow: 0 0 25px var(--warning) !important; border-color: var(--warning) !important; transform: scale(1.1); }
+
+/* --- TABLEAUX (History & Dashboard List) --- */
+.custom-table { width: 100%; border-collapse: collapse; }
+.custom-table th { background: #f8fafc; padding: 16px; text-align: left; font-size: 13px; text-transform: uppercase; color: var(--text-muted); }
+.custom-table td { padding: 16px; border-top: 1px solid #f1f5f9; }
+
+.plate-badge { background: var(--bg-asphalt); color: white; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+/* Container de sortie */
+.checkout-container {
+    max-width: 600px;
+    margin: 40px auto;
+}
+
+.checkout-card {
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+}
+
+.checkout-title {
+    font-weight: 800;
+    margin-bottom: 30px;
+    text-align: center;
+    color: #1e293b;
+}
+
+/* Lignes de détails */
+.checkout-details {
+    display: grid;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 12px;
+}
+
+.detail-label { color: #64748b; font-weight: 600; }
+.plate-number { font-family: monospace; font-size: 1.1rem; }
+
+/* Ligne de Total */
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    background: #4f46e5;
+    color: white;
+    border-radius: 12px;
+    margin-top: 10px;
+}
+
+.total-amount { font-size: 1.5rem; }
+
+/* Boutons */
+.checkout-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.btn-cancel {
+    text-align: center;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #64748b;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.btn-confirm {
+    padding: 16px;
+    border-radius: 12px;
+    background: #10b981;
+    color: white;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-confirm:hover { opacity: 0.9; }
+/* --- VARIABLES ET DASHBOARD --- */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --bg-asphalt: #1e293b;
+    --road-color: #0f172a;
+    --line-color: rgba(255, 255, 255, 0.2);
+    --accent-yellow: #f59e0b;
+    --success-green: #10b981;
+    --danger-red: #ef4444;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.top-overview { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; margin-bottom: 32px; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-top: 4px solid var(--primary); }
+.stat-val { font-size: 2rem; font-weight: 800; margin-top: 8px; }
+
+.chart-container { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
+
+/* --- RECHERCHE --- */
+.search-container { position: relative; margin-bottom: 30px; }
+.search-container i { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--primary); z-index: 10; pointer-events: none; }
+.search-bar { 
+    width: 100%; padding: 18px 25px 18px 55px; border-radius: 16px; border: 2px solid transparent; 
+    background: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04); outline: none; 
+}
+.search-bar:focus { border-color: var(--primary); }
+
+/* --- PLAN PARKING --- */
+#plan-section { display: none; background: var(--bg-asphalt); padding: 40px; border-radius: 24px; margin-bottom: 30px; }
+.parking-layout { display: grid; grid-template-areas: "nord nord nord" "ouest route est" "sud sud sud"; grid-template-columns: 1fr 150px 1fr; gap: 20px; }
+.slot { 
+    width: 42px; height: 62px; border: 2px solid var(--line-color); border-radius: 8px; 
+    display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; 
+}
+.available { background: rgba(16, 185, 129, 0.1); color: var(--success-green); border-color: var(--success-green); }
+.occupied { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); border-color: #f87171; }
+.search-highlight { box-shadow: 0 0 25px var(--accent-yellow) !important; border-color: var(--accent-yellow) !important; transform: scale(1.2) !important; }
+
+.road { grid-area: route; background: var(--road-color); border-left: 2px dashed var(--line-color); border-right: 2px dashed var(--line-color); min-height: 350px; display: flex; align-items: center; justify-content: center; }
+/* --- HISTORIQUE --- */
+.history-card { 
+    background: white; border-radius: 16px; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+    overflow: hidden; margin-top: 20px; 
+}
+
+.history-table { width: 100%; border-collapse: collapse; }
+.history-table th { 
+    background: #f8fafc; padding: 16px; text-align: left; 
+    font-size: 13px; text-transform: uppercase; color: #64748b; font-weight: 700; 
+}
+.history-table td { padding: 16px; border-top: 1px solid #f1f5f9; vertical-align: middle; }
+
+/* Badges de Statut */
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.status-completed { background: #dcfce7; color: #166534; }
+.status-progress { background: #fef3c7; color: #92400e; }
+
+/* Plaque d'immatriculation */
+.plate-badge { 
+    background: #1e293b; color: white; padding: 6px 12px; 
+    border-radius: 6px; font-family: 'Courier New', monospace; font-weight: bold; 
+}
+
+/* Filtres et Boutons */
+.search-filter { display: flex; gap: 10px; margin-bottom: 20px; }
+.filter-input { 
+    padding: 10px 15px; border-radius: 8px; 
+    border: 1px solid #e2e8f0; width: 300px; outline: none; 
+}
+.filter-input:focus { border-color: #4f46e5; }
+
+.btn-print { 
+    background: #1e293b; color: white; padding: 10px 20px; 
+    border: none; border-radius: 8px; cursor: pointer; 
+    display: flex; align-items: center; gap: 8px; font-weight: 600; 
+}
+
+/* --- OPTIMISATION IMPRESSION --- */
+@media print {
+    .btn-print, .search-filter, .navbar, .sidebar, .toggle-btn { display: none !important; }
+    body { background: white; padding: 0; }
+    .history-card { box-shadow: none; border: 1px solid #eee; }
+    .container { width: 100%; max-width: 100%; margin: 0; padding: 0; }
+}

@@ -3,33 +3,6 @@
 {% block title %}Parking History | Smart Parking{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
-<style>
-    .history-card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
-    .history-table { width: 100%; border-collapse: collapse; }
-    .history-table th { background: #f8fafc; padding: 16px; text-align: left; font-size: 13px; text-transform: uppercase; color: #64748b; font-weight: 700; }
-    .history-table td { padding: 16px; border-top: 1px solid #f1f5f9; vertical-align: middle; }
-    
-    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .status-completed { background: #dcfce7; color: #166534; }
-    .status-progress { background: #fef3c7; color: #92400e; }
-    
-    .plate-badge { background: #1e293b; color: white; padding: 6px 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-weight: bold; }
-    
-    .search-filter { display: flex; gap: 10px; margin-bottom: 20px; }
-    .filter-input { padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; width: 300px; outline: none; }
-    .filter-input:focus { border-color: #4f46e5; }
-    
-    .btn-print { background: #1e293b; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; }
-    .btn-print:hover { background: #334155; }
-
-    @media print {
-        .btn-print, .search-filter, .dashboard-sidebar { display: none !important; }
-        .history-card { box-shadow: none; border: 1px solid #eee; }
-    }
-</style>
-
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
     <div>
         <h2 style="font-weight: 800; color: #1e293b; margin: 0;">📋 Historique Complet</h2>
@@ -102,11 +75,7 @@
 
         rows.forEach(row => {
             let plate = row.querySelector('.plate-badge').innerText.toUpperCase();
-            if (plate.includes(input)) {
-                row.style.display = "";
-            } else {
-                row.style.display = "none";
-            }
+            row.style.display = plate.includes(input) ? "" : "none";
         });
     }
 </script>

@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.http import HttpResponse
 from django.contrib import messages
+import qrcode
+from django.utils import timezone
 from django.db.models import Sum, Count
 from django.db import transaction
 import io
@@ -90,46 +92,101 @@ def check_in(request):
     return render(request, 'management/check_in.html', {'form': form})
 
 def checkout_vehicle(request, session_id):
-    """Calcule le prix, libère la place et génère le ticket PDF."""
+    """
+    1. Calcule le montant final.
+    2. Demande confirmation de paiement.
+    3. Libère la place et génère le reçu PDF.
+    """
     session = get_object_or_404(ParkingSession, id=session_id)
     
     if session.exit_time:
+        messages.warning(request, "Ce reçu a déjà été généré.")
         return redirect('dashboard')
 
-    with transaction.atomic():
-        session.exit_time = timezone.now()
-        
-        # Calcul des tarifs
-        base_rate = float(session.slot.zone.price_per_hour)
-        extra_rate = float(session.vehicle.vehicle_type.extra_rate)
-        combined_rate = base_rate + extra_rate
-        
-        duration = session.exit_time - session.entry_time
-        duration_in_hours = duration.total_seconds() / 3600
-        hours_to_bill = math.ceil(duration_in_hours) if duration_in_hours > 0 else 1
-        
-        session.total_price = round(combined_rate * hours_to_bill, 2)
-        session.save()
-        
-        # Libération de la place (redevient verte sur ton plan)
-        session.slot.status = 'available'
-        session.slot.save()
+    # --- LOGIQUE MÉTIER : CALCUL ---
+    now = timezone.now()
+    duration = now - session.entry_time
+    duration_in_hours = duration.total_seconds() / 3600
+    
+    # Règle : Min 1h, arrondi au supérieur (ex: 1h05 -> 2h)
+    hours_to_bill = math.ceil(max(duration_in_hours, 1.0))
+    
+    # Tarification basée sur la Zone + Type de véhicule
+    base_rate = float(session.slot.zone.price_per_hour)
+    extra_rate = float(session.vehicle.vehicle_type.extra_rate)
+    total_price = round((base_rate + extra_rate) * hours_to_bill, 2)
 
-    # Génération du Ticket PDF
+    if request.method == 'POST':
+        with transaction.atomic():
+            # Mise à jour de la session (clôture)
+            session.exit_time = now
+            session.total_price = total_price
+            session.save()
+            
+            # Libération immédiate de la place
+            session.slot.status = 'available'
+            session.slot.save()
+            
+            messages.success(request, f"Paiement de {total_price} DH validé. Reçu généré.")
+            return generate_receipt_pdf(session) # Appel de la fonction PDF
+
+    return render(request, 'management/checkout_confirm.html', {
+        'session': session,
+        'duration_hours': hours_to_bill,
+        'total_price': total_price
+    })
+
+def generate_receipt_pdf(session):
+    """Génère un reçu de paiement avec QR Code vers le site web."""
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=(80*mm, 120*mm))
-    p.setFont("Helvetica-Bold", 12)
-    p.drawCentredString(40*mm, 110*mm, "SMART PARKING")
+    # Format Ticket Thermique (80mm x 150mm)
+    p = canvas.Canvas(buffer, pagesize=(80*mm, 150*mm))
+    
+    # --- EN-TÊTE ---
+    p.setFont("Helvetica-Bold", 14)
+    p.drawCentredString(40*mm, 140*mm, "SMART PARKING")
     p.setFont("Helvetica", 8)
-    p.drawCentredString(40*mm, 105*mm, f"Zone: {session.slot.zone.name}")
-    p.line(5*mm, 102*mm, 75*mm, 102*mm)
+    p.drawCentredString(40*mm, 135*mm, "REÇU DE PAIEMENT")
+    p.drawCentredString(40*mm, 131*mm, session.exit_time.strftime("%d/%m/%Y %H:%M"))
+    p.line(5*mm, 128*mm, 75*mm, 128*mm)
+    
+    # --- DÉTAILS DE LA TRANSACTION ---
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(10*mm, 120*mm, f"VÉHICULE : {session.vehicle.plate_number}")
     
     p.setFont("Helvetica", 9)
-    p.drawString(10*mm, 92*mm, f"Plaque: {session.vehicle.plate_number}")
-    p.drawString(10*mm, 85*mm, f"Place: {session.slot.slot_number}")
-    p.drawString(10*mm, 70*mm, f"Total: {session.total_price} DH")
+    p.drawString(10*mm, 112*mm, f"Place : {session.slot.slot_number} ({session.slot.zone.name})")
+    p.drawString(10*mm, 106*mm, f"Arrivée : {session.entry_time.strftime('%H:%M')}")
+    p.drawString(10*mm, 100*mm, f"Départ : {session.exit_time.strftime('%H:%M')}")
     
+    p.line(10*mm, 95*mm, 70*mm, 95*mm)
+    
+    # --- MONTANT FINAL ---
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(10*mm, 85*mm, "TOTAL PAYÉ")
+    p.drawRightString(70*mm, 85*mm, f"{session.total_price} DH")
+    
+    # --- QR CODE (LIEN VERS LE SITE) ---
+    site_url = "http://smartparking.ma" # Ton lien
+    qr = qrcode.make(site_url)
+    qr_buffer = io.BytesIO()
+    qr.save(qr_buffer, format='PNG')
+    qr_buffer.seek(0)
+    
+    from reportlab.lib.utils import ImageReader
+    p.drawImage(ImageReader(qr_buffer), 25*mm, 35*mm, width=30*mm, height=30*mm)
+    
+    # --- PIED DE PAGE ---
+    p.setFont("Helvetica-Bold", 8)
+    p.drawCentredString(40*mm, 30*mm, "www.smartparking-souhail.ma")
+    p.setFont("Helvetica-Oblique", 7)
+    p.drawCentredString(40*mm, 15*mm, "Merci de votre confiance !")
+
+
     p.showPage()
     p.save()
     buffer.seek(0)
-    return HttpResponse(buffer, content_type='application/pdf')
+    
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Recu_{session.vehicle.plate_number}.pdf"'
+    return response

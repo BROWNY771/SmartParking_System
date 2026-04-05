@@ -2,12 +2,13 @@ import os
 import sys
 import django
 import random
+import string
 
 # 1. Configuration du chemin
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-# 2. Utilisation du nom de projet détecté
+# 2. Configuration Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'parking_web.settings')
 
 # 3. Initialisation
@@ -18,61 +19,72 @@ except Exception as e:
     print(f"❌ Erreur : {e}")
     sys.exit(1)
 
-# 4. Imports avec TES noms de classes exacts
 from django.utils import timezone
-from management.models import Zone, VehicleType, Vehicle, ParkingSlot, ParkingSession
+from management.models import VehicleType, Vehicle, ParkingSlot, ParkingSession
+
+def generate_moroccan_plate():
+    """Génère une plaque au format : 12345-A-6 (Ex: Rabat=1, Casa=6, Salé=2)"""
+    numbers = random.randint(100, 99999)
+    # Lettres communes sur les plaques marocaines
+    letters = ['A', 'B', 'D', 'H', 'J', 'W', 'P'] 
+    letter = random.choice(letters)
+    prefecture = random.randint(1, 88) # Codes préfectures (1=Rabat, 6=Casa, etc.)
+    return f"{numbers}-{letter}-{prefecture}"
 
 def seed_parking():
-    print("🚀 Remplissage du parking en cours...")
+    print("🚀 Remplissage du parking avec des immatriculations marocaines...")
 
-    # Création/Récupération d'un type de véhicule par défaut
-    v_type, _ = VehicleType.objects.get_or_create(name="Berline")
+    # Récupération ou création des types pour varier
+    type_berline, _ = VehicleType.objects.get_or_create(name="Berline", defaults={'extra_rate': 0})
+    type_suv, _ = VehicleType.objects.get_or_create(name="SUV/4x4", defaults={'extra_rate': 5})
+    
+    vehicle_types = [type_berline, type_suv]
+    brands = ["Dacia Logan", "Renault Clio", "Golf 7", "Range Rover", "Toyota Hilux", "Peugeot 208", "Fiat 500", "Hyundai Accent"]
 
-    vehicles_data = [
-        ("ABC-123-A", "Audi A4"), ("DFG-456-B", "Golf 8"),
-        ("HJK-789-C", "Mercedes C"), ("LMP-012-D", "BMW Serie 3"),
-        ("QRS-345-E", "Renault Clio"), ("TUV-678-F", "Peugeot 208"),
-        ("WXY-901-G", "Tesla Model 3"), ("ZAB-234-H", "Dacia Sandero"),
-        ("CDE-567-I", "Ford Focus"), ("FGH-890-J", "Hyundai Tucson"),
-    ]
-
-    # Récupérer les places libres (ParkingSlot)
-    # On filtre par 'available' (vérifie si c'est bien la valeur dans ton models.py)
+    # Récupérer TOUTES les places libres
     available_slots = list(ParkingSlot.objects.filter(status='available'))
 
     if not available_slots:
-        print("❌ Aucune place libre 'available' trouvée.")
-        print("💡 Conseil : Vérifie tes objets ParkingSlot dans l'admin Django.")
+        print("❌ Aucune place libre trouvée.")
         return
 
+    # On décide de remplir 70% des places libres pour laisser un peu de vide
+    num_to_fill = int(len(available_slots) * 0.7)
     random.shuffle(available_slots)
-    count = min(len(available_slots), 10)
+    
+    slots_to_occupy = available_slots[:num_to_fill]
 
-    for i in range(count):
-        plate, brand = vehicles_data[i]
-        slot = available_slots[i]
-
-        # Créer le véhicule lié au type
+    count = 0
+    for slot in slots_to_occupy:
+        plate = generate_moroccan_plate()
+        v_type = random.choice(vehicle_types)
+        
+        # 1. Créer ou récupérer le véhicule
         vehicle, _ = Vehicle.objects.get_or_create(
             plate_number=plate,
-            defaults={'vehicle_type': v_type} 
+            defaults={'vehicle_type': v_type}
         )
 
-        # Création de la session (entrée il y a 1h à 3h)
-        entry_time = timezone.now() - timezone.timedelta(minutes=random.randint(60, 180))
+        # 2. Création de la session (entre 30 min et 5 heures de présence)
+        entry_time = timezone.now() - timezone.timedelta(minutes=random.randint(30, 300))
         
-        ParkingSession.objects.create(
-            vehicle=vehicle,
-            slot=slot,
-            entry_time=entry_time
-        )
+        # On vérifie s'il n'y a pas déjà une session active (sécurité)
+        if not ParkingSession.objects.filter(slot=slot, exit_time__isnull=True).exists():
+            ParkingSession.objects.create(
+                vehicle=vehicle,
+                slot=slot,
+                entry_time=entry_time
+            )
 
-        # Mise à jour du statut de la place
-        slot.status = 'occupied'
-        slot.save()
-        print(f"  [+] {plate} ({brand}) -> Place {slot.slot_number}")
+            # 3. Mise à jour du statut de la place
+            slot.status = 'occupied'
+            slot.save()
+            
+            brand = random.choice(brands)
+            print(f"  [+] {plate} ({brand}) -> Zone {slot.zone.name} | Place {slot.slot_number}")
+            count += 1
 
-    print(f"\n✨ Opération terminée : {count} véhicules ajoutés.")
+    print(f"\n✨ Opération terminée : {count} véhicules marocains ajoutés au parking.")
 
 if __name__ == "__main__":
     seed_parking()

@@ -1,0 +1,32 @@
+{% extends 'management/base.html' %}
+
+{% block title %}Détails de la Sortie | Smart Parking{% endblock %}
+
+{% block content %}
+<div class="checkout-container">
+    <div class="checkout-card">
+        <h2 class="checkout-title">Détails de la Sortie</h2>
+        
+        <div class="checkout-details">
+            <div class="detail-row">
+                <span class="detail-label">Véhicule</span>
+                <strong class="detail-value plate-number">{{ session.vehicle.plate_number }}</strong>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Temps passé</span>
+                <strong class="detail-value">{{ duration_hours }} Heure(s) <small>(Arrondi)</small></strong>
+            </div>
+            <div class="total-row">
+                <span class="total-label">TOTAL À PAYER</span>
+                <strong class="total-amount">{{ total_price }} DH</strong>
+            </div>
+        </div>
+
+        <form method="POST" class="checkout-actions">
+            {% csrf_token %}
+            <a href="{% url 'dashboard' %}" class="btn-cancel">Annuler</a>
+            <button type="submit" class="btn-confirm">Valider & Imprimer</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
